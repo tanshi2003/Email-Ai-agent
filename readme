@@ -1,0 +1,20 @@
+# Create your project folder
+mkdir email-ai-agent
+cd email-ai-agent
+
+# Create virtual environment
+python -m venv venv
+venv\Scripts\activate
+
+pip install nltk scikit-learn numpy pandas
+
+
+email-ai-agent/
+│
+├── ai_logic.py
+├── email_reader.py
+├── email_sender.py
+└── email_agent.py
+
+
+python email_agent.py
