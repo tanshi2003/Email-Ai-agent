@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f6f5f1">
+  <meta name="description" content="Email AI Agent by Tanshi Khandelwal. Python email automation with Gmail IMAP/SMTP, optional Gemini-powered reply drafting, and a safe sample-data demo.">
+  <title>Email AI Agent | Tanshi Khandelwal</title>
+  <style>
+    :root{--paper:#f6f5f1;--ink:#20221f;--muted:#70736e;--line:#dedfd8;--accent:#5369d7;--accent-soft:#e9ecff;--card:#fffefa;--green:#27735b}
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.6 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    a{color:inherit}
+    .wrap{width:min(1120px,calc(100% - 44px));margin:auto}
+    header{height:76px;border-bottom:1px solid var(--line);display:flex;align-items:center}
+    .nav{display:flex;align-items:center;justify-content:space-between;gap:20px}
+    .brand{font-weight:750;letter-spacing:-.04em;font-size:1.08rem}
+    .brand span{color:var(--accent)}
+    .navlinks{display:flex;gap:24px;color:var(--muted);font-size:.9rem}
+    .navlinks a{text-decoration:none}
+    .navlinks a:hover{color:var(--ink)}
+    .hero{padding:94px 0 78px;display:grid;grid-template-columns:1.07fr .93fr;gap:64px;align-items:center}
+    .eyebrow{display:inline-flex;align-items:center;gap:9px;color:var(--accent);font-size:.78rem;font-weight:750;letter-spacing:.13em;text-transform:uppercase}
+    .dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block}
+    h1{font-size:clamp(3rem,6vw,5.3rem);line-height:1.02;letter-spacing:-.075em;margin:20px 0 22px;font-weight:760}
+    h1 em{font-style:normal;color:var(--accent)}
+    .lead{font-size:1.15rem;line-height:1.7;color:#5e625d;max-width:590px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:30px}
+    .btn{display:inline-flex;align-items:center;justify-content:center;padding:12px 18px;border-radius:9px;text-decoration:none;font-weight:650;font-size:.92rem;border:1px solid var(--ink);transition:transform .18s,background .18s}
+    .btn:hover{transform:translateY(-2px)}
+    .primary{background:var(--ink);color:white}
+    .secondary{background:transparent}
+    .note{font-size:.8rem;color:var(--muted);margin-top:15px}
+    .preview{background:var(--card);border:1px solid var(--line);border-radius:17px;padding:19px;box-shadow:0 22px 55px #292a1b0d;transform:rotate(1deg)}
+    .windowbar{display:flex;align-items:center;justify-content:space-between;padding-bottom:14px;border-bottom:1px solid var(--line);font-size:.82rem;color:var(--muted)}
+    .lights{display:flex;gap:5px}.lights i{width:7px;height:7px;border-radius:50%;background:#d5d6d0}
+    .mailmeta{padding:18px 2px 13px}.mailmeta strong{display:block;font-size:.95rem}.mailmeta small{color:var(--muted)}
+    .mailbody{font-size:.87rem;color:#535750;padding:13px;background:#f7f7f3;border-radius:10px}
+    .draft{padding:15px 2px 5px}.draftlabel{font-size:.71rem;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:750}
+    .draft p{font-size:.9rem;margin:8px 0 13px}
+    .status{display:inline-flex;gap:7px;align-items:center;font-size:.73rem;color:var(--green);font-weight:700;background:#eaf4ef;padding:5px 9px;border-radius:99px}
+    section{padding:68px 0;border-top:1px solid var(--line)}
+    .sectionhead{display:flex;justify-content:space-between;align-items:end;gap:32px;margin-bottom:28px}
+    .kicker{font-size:.75rem;text-transform:uppercase;letter-spacing:.14em;color:var(--accent);font-weight:750}
+    h2{font-size:clamp(2rem,4vw,3rem);letter-spacing:-.06em;line-height:1.1;margin:8px 0}
+    .sectionhead p{max-width:500px;color:var(--muted);margin:0}
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:13px;padding:21px}
+    .card .num{font-size:.76rem;color:var(--accent);font-weight:800;letter-spacing:.1em}
+    .card h3{font-size:1.06rem;margin:12px 0 5px;letter-spacing:-.02em}
+    .card p{margin:0;color:var(--muted);font-size:.9rem}
+    .flow{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;align-items:stretch}
+    .step{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:17px 13px;min-height:116px}
+    .step b{display:block;font-size:.9rem;margin:3px 0}
+    .step small{color:var(--muted);font-size:.77rem}
+    .arrow{display:none}
+    .demo{background:#20221f;color:#f8f7f1;border-radius:17px;padding:28px;display:grid;grid-template-columns:.9fr 1.1fr;gap:28px}
+    .demo p{color:#b9bdb6;font-size:.9rem}
+    .demo label{display:block;font-size:.78rem;color:#c5c8c1;margin:16px 0 6px}
+    select,textarea{width:100%;border-radius:8px;border:1px solid #565a52;background:#2c2f2a;color:#f8f7f1;padding:11px;font:inherit;font-size:.87rem}
+    textarea{resize:vertical;min-height:135px}
+    .demo button{border:0;border-radius:8px;padding:11px 14px;background:#c9d0ff;color:#20221f;font-weight:750;cursor:pointer;margin-top:12px}
+    .demoresult{background:#2b2e29;border:1px solid #494d45;border-radius:12px;padding:18px}
+    .demoresult .tag{font-size:.7rem;color:#b8c2ff;text-transform:uppercase;letter-spacing:.12em;font-weight:750}
+    #reply{white-space:pre-wrap;font-size:.9rem;color:#f1f1e9;min-height:126px}
+    .tiny{font-size:.75rem!important;color:#999e94!important}
+    .stack{display:flex;gap:8px;flex-wrap:wrap}
+    .chip{font-size:.82rem;border:1px solid var(--line);background:var(--card);padding:7px 11px;border-radius:99px}
+    .callout{border-left:3px solid var(--accent);padding:12px 16px;background:var(--accent-soft);border-radius:0 9px 9px 0;color:#3e477c;font-size:.88rem}
+    footer{padding:28px 0 40px;color:var(--muted);font-size:.82rem;display:flex;justify-content:space-between;gap:16px}
+    @media(max-width:850px){.hero{grid-template-columns:1fr;gap:34px;padding:66px 0}.preview{transform:none}.sectionhead{display:block}.sectionhead p{margin-top:12px}.grid{grid-template-columns:1fr 1fr}.flow{grid-template-columns:1fr 1fr}.demo{grid-template-columns:1fr}}
+    @media(max-width:560px){.wrap{width:min(100% - 30px,1120px)}.navlinks{gap:12px;font-size:.78rem}.navlinks a:nth-child(2){display:none}.hero{padding:54px 0}.grid{grid-template-columns:1fr}.flow{grid-template-columns:1fr 1fr}section{padding:50px 0}footer{display:block}footer span{display:block;margin-top:8px}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <div class="brand">mail<span>mind</span> <span style="color:var(--muted);font-weight:450">/ project</span></div>
+    <nav class="navlinks" aria-label="Main navigation">
+      <a href="#workflow">Workflow</a>
+      <a href="#demo">Try demo</a>
+      <a href="#build">Build notes</a>
+      <a href="https://github.com/tanshi2003/Email-Ai-agent">GitHub ↗</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <div>
+      <div class="eyebrow"><span class="dot"></span> Python · Email automation · Gemini</div>
+      <h1>Less inbox admin.<br><em>More thoughtful</em><br>replies.</h1>
+      <p class="lead">An email automation project that reads incoming messages, prepares context-aware reply drafts with an optional Gemini model, and connects the workflow to Gmail over IMAP and SMTP.</p>
+      <div class="actions">
+        <a class="btn primary" href="https://github.com/tanshi2003/Email-Ai-agent">Explore the source ↗</a>
+        <a class="btn secondary" href="#demo">Try sample demo ↓</a>
+      </div>
+      <p class="note">Built by Tanshi Khandelwal · Interactive preview uses sample text only.</p>
+    </div>
+    <div class="preview" aria-label="Illustrative generated email draft">
+      <div class="windowbar"><span>✉ &nbsp; Reply assistant</span><span class="lights"><i></i><i></i><i></i></span></div>
+      <div class="mailmeta"><strong>Project sync tomorrow</strong><small>From: alex@example.com · Sample message</small></div>
+      <div class="mailbody">Hi, could you confirm whether you can join tomorrow's project sync at 11 AM?</div>
+      <div class="draft"><div class="draftlabel">Prepared reply</div><p>Thanks for checking in. I can join tomorrow's project sync at 11 AM. Looking forward to it.</p><span class="status">● Draft preview · Not sent</span></div>
+    </div>
+  </div>
+
+  <section id="workflow">
+    <div class="wrap">
+      <div class="sectionhead">
+        <div><div class="kicker">01 / System workflow</div><h2>From unread email<br>to reply draft.</h2></div>
+        <p>The project separates mailbox access, message parsing, reply generation and message delivery into small Python modules.</p>
+      </div>
+      <div class="flow">
+        <div class="step"><div class="num">01</div><b>Gmail inbox</b><small>Unread messages arrive</small></div>
+        <div class="step"><div class="num">02</div><b>IMAP reader</b><small>Fetch sender, subject and body</small></div>
+        <div class="step"><div class="num">03</div><b>Reply engine</b><small>Gemini or rule-based fallback</small></div>
+        <div class="step"><div class="num">04</div><b>SMTP sender</b><small>Delivers replies in live mode</small></div>
+        <div class="step"><div class="num">05</div><b>Human review</b><small>Required for safe production use</small></div>
+      </div>
+      <div class="callout" style="margin-top:18px">The current live inbox script sends replies automatically. A review-before-send workflow is on the improvement roadmap; use a dedicated test mailbox only until that control is implemented.</div>
+    </div>
+  </section>
+
+  <section id="demo">
+    <div class="wrap">
+      <div class="sectionhead">
+        <div><div class="kicker">02 / Interactive preview</div><h2>Try the reply flow.</h2></div>
+        <p>Choose a fictional email to see the project's current built-in rule-based draft behaviour. This static page does not call an AI API, access Gmail or send messages.</p>
+      </div>
+      <div class="demo">
+        <div>
+          <div class="tag" style="color:#b8c2ff;font-size:.7rem;letter-spacing:.12em;font-weight:750">INCOMING EMAIL</div>
+          <label for="scenario">Choose a sample</label>
+          <select id="scenario">
+            <option value="meeting">Meeting confirmation</option>
+            <option value="pricing">Pricing enquiry</option>
+            <option value="delay">Delivery delay</option>
+            <option value="thanks">Thank-you note</option>
+            <option value="general">General enquiry</option>
+          </select>
+          <label for="sampleEmail">Message content</label>
+          <textarea id="sampleEmail" readonly>Could you confirm if you will attend tomorrow's project meeting?</textarea>
+          <button id="generate">Generate draft preview ↗</button>
+        </div>
+        <div class="demoresult">
+          <div class="tag">GENERATED REPLY · SAMPLE LOGIC</div>
+          <p id="reply">Your sample reply will appear here.</p>
+          <p class="tiny">Illustrative rule-based output. For LLM-generated drafts, run the local Streamlit app with GEMINI_API_KEY configured.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="build">
+    <div class="wrap">
+      <div class="sectionhead">
+        <div><div class="kicker">03 / Under the hood</div><h2>Small modules.<br>Clear responsibilities.</h2></div>
+        <p>The repository keeps the email reader, sender and reply-generation logic separate, making it easier to extend and test each part.</p>
+      </div>
+      <div class="grid">
+        <article class="card"><div class="num">MODULE / 01</div><h3>email_reader.py</h3><p>Connects through IMAP SSL, retrieves unread messages and extracts email content with charset handling.</p></article>
+        <article class="card"><div class="num">MODULE / 02</div><h3>ai_logic.py</h3><p>Supports optional Gemini-generated drafts, with a deterministic keyword-based fallback.</p></article>
+        <article class="card"><div class="num">MODULE / 03</div><h3>email_sender.py</h3><p>Formats a reply and sends it through Gmail SMTP over SSL in the live automation workflow.</p></article>
+      </div>
+      <h3 style="margin:30px 0 13px;font-size:1rem">Technology</h3>
+      <div class="stack">
+        <span class="chip">Python</span><span class="chip">Gemini API (optional)</span><span class="chip">IMAP / SMTP</span><span class="chip">Streamlit</span><span class="chip">python-dotenv</span>
+      </div>
+      <h3 style="margin:30px 0 13px;font-size:1rem">Run the AI-enabled local demo</h3>
+      <div class="card">
+        <p style="font-family:ui-monospace,SFMono-Regular,monospace;font-size:.84rem;color:var(--ink);margin:0;line-height:2">pip install -r requirements.txt<br>streamlit run email-ai-agent/demo.py</p>
+        <p style="margin-top:12px">Add GEMINI_API_KEY to your local .env file to use Gemini. The Streamlit demo uses sample emails and never connects to Gmail or sends mail.</p>
+      </div>
+    </div>
+  </section>
+</main>
+<footer class="wrap"><span>© 2026 Tanshi Khandelwal · Email AI Agent</span><span><a href="https://github.com/tanshi2003/Email-Ai-agent">Source code on GitHub ↗</a></span></footer>
+<script>
+  const scenarios = {
+    meeting: { email: "Could you confirm if you will attend tomorrow's project meeting?", reply: "Sure, I’ll attend the meeting. Please confirm the time." },
+    pricing: { email: "Hello, could you please share your price and quote for the service?", reply: "Thank you for your enquiry. I'll review the requirements and share the pricing details shortly." },
+    delay: { email: "Our delivery has been delayed. Can you let us know the status?", reply: "Apologies for the delay. We're checking the status and will share an update shortly." },
+    thanks: { email: "Thank you for your help and support on this project.", reply: "You're very welcome!" },
+    general: { email: "Hello, I wanted to ask about the next steps for this request.", reply: "Thank you for your email. I’ll review this and get back to you shortly." }
+  };
+  const select = document.getElementById("scenario");
+  const email = document.getElementById("sampleEmail");
+  const reply = document.getElementById("reply");
+  function showSample() {
+    email.value = scenarios[select.value].email;
+    reply.textContent = "Select “Generate draft preview” to see the sample output.";
+  }
+  select.addEventListener("change", showSample);
+  document.getElementById("generate").addEventListener("click", () => {
+    reply.textContent = scenarios[select.value].reply;
+  });
+  showSample();
+</script>
+</body>
+</html>
