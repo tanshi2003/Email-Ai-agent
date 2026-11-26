@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from ai_logic import generate_reply
 
 load_dotenv()
-st.set_page_config(page_title="MailMind | Email Agent Demo", page_icon="✉️", layout="wide")
+st.set_page_config(page_title="MailMind | Email Agent Demo", page_icon="📬", layout="wide")
 
 st.markdown("""
 <style>

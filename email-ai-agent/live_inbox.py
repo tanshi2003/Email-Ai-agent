@@ -9,7 +9,7 @@ from email_classifier import classify_email
 from email_sender import send_email
 
 load_dotenv()
-st.set_page_config(page_title="MailMind | Live Inbox", page_icon="✉️", layout="wide")
+st.set_page_config(page_title="MailMind | Live Inbox", page_icon="📬", layout="wide")
 st.title("MailMind · Live Inbox")
 st.caption("Unrestricted sender inbox · Read-only fetching · Replies are sent only after your confirmation.")
 
