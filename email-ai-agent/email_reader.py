@@ -44,7 +44,7 @@ def read_latest_email(username, password):
         if status != "OK" or not messages or not messages[0].strip():
             return None, None, None, None
         latest_id = messages[0].split()[-1]
-        status, data = mail.fetch(latest_id, "(RFC822)")
+        status, data = mail.fetch(latest_id, "(BODY.PEEK[])")
         if status != "OK" or not data or not isinstance(data[0], tuple):
             return None, None, None, None
         msg = email.message_from_bytes(data[0][1])
