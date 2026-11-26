@@ -2,14 +2,14 @@
 
 A Python-based email automation project that connects to a Gmail inbox, reads unread messages, generates a reply, and sends it through SMTP.
 
-> **Current implementation note:** the reply generator in this repository is currently rule-based keyword matching. The project demonstrates an end-to-end email automation workflow, not an LLM integration yet. An LLM provider can be added as a separate, testable reply-generation backend.
+> **AI mode:** configure `GEMINI_API_KEY` to enable LLM-generated reply drafts through the Gemini API. Without a key, the agent falls back to the original deterministic keyword-based reply rules. The AI provider is isolated in `ai_logic.py`.
 
 ## What it does
 
 - Connects to Gmail over IMAP SSL.
 - Finds unread messages and extracts sender, subject, and plain-text content.
 - Handles common email character encodings.
-- Generates a reply using a replaceable reply-generation module.
+- Generates a reply using Gemini when configured, with a rule-based fallback.
 - Sends a response through SMTP SSL.
 - Runs as a polling process with configurable interval.
 
@@ -37,6 +37,8 @@ Recipient
 - Python 3
 - IMAP / SMTP (Python standard library)
 - python-dotenv for local environment configuration
+- Streamlit for the local interactive sample-data demo
+- Gemini API (optional, via an environment key)
 
 ## Repository structure
 
@@ -45,6 +47,7 @@ Recipient
 ├── email-ai-agent/
 │   ├── ai_logic.py
 │   ├── email_agent.py
+│   ├── demo.py
 │   ├── email_reader.py
 │   └── email_sender.py
 ├── requirements.txt
@@ -88,11 +91,20 @@ python -m pip install -r requirements.txt
 1. Enable 2-Step Verification on the Google account used for testing.
 2. Create a Google App Password.
 3. Copy `.env.example` to `.env`.
-4. Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env`.
+4. Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` if you plan to connect your test mailbox.
+5. Optionally set `GEMINI_API_KEY` to enable Gemini-generated drafts. You can keep `REPLY_PROVIDER=auto`.
 
 Never use your normal Google password. Never commit `.env` or share an App Password.
 
-### 5. Start the agent
+### 5. Run the local interactive demo (sample data only)
+
+```bash
+streamlit run email-ai-agent/demo.py
+```
+
+The demo never connects to Gmail or sends email. Try the sample messages to preview generated drafts. Configure `GEMINI_API_KEY` in your environment to use the Gemini provider.
+
+### 6. Start the live inbox agent
 
 From the repository root:
 
@@ -104,7 +116,7 @@ Stop it with Ctrl+C.
 
 ## Safety before connecting a real inbox
 
-The current script sends replies automatically. Test with a dedicated mailbox and controlled test messages first. Do not point it at a personal or work inbox until you have added sender allowlisting, duplicate-message protection, a review/approval step, robust MIME handling, and clear logging. Avoid replying to mailing lists, automated notifications, and messages where the sender address cannot be safely parsed.
+The live inbox script still sends replies automatically. Test with a dedicated mailbox and controlled test messages first. Do not point it at a personal or work inbox until you have added sender allowlisting, duplicate-message protection, a review/approval step, robust MIME handling, and clear logging. Avoid replying to mailing lists, automated notifications, and messages where the sender address cannot be safely parsed.
 
 If an App Password was ever committed to this repository, revoke it in Google Account security and create a new one. Removing it from the latest source does not erase it from Git history.
 
@@ -114,13 +126,13 @@ If an App Password was ever committed to this repository, revoke it in Google Ac
 - [ ] Add message-ID based deduplication so polling cannot send repeated replies.
 - [ ] Add sender allowlists and skip automated/no-reply messages.
 - [ ] Add unit tests for decoding, classification, and reply generation.
-- [ ] Add an LLM-backed response provider with configurable model, prompt, timeout, and safe fallback.
+- [x] Add a Gemini-backed response provider with configurable model, prompt, request timeout, and rule-based fallback.
 - [ ] Add structured logs and clearer error handling.
-- [ ] Add a browser demo using sample emails, with no access to a real inbox.
+- [x] Add a local Streamlit demo using sample emails, with no access to a real inbox.
 
 ## Demo
 
-A safe browser demo should use sample email content and show the generated draft without sending email or requesting credentials. It can demonstrate the user experience without exposing mailbox data.
+Run `streamlit run email-ai-agent/demo.py` to open the local interactive showcase. It uses fictional sample emails only and never reads an inbox or sends a message.
 
 ## Author
 
