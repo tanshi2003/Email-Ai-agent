@@ -1,43 +1,45 @@
 # MailMind | Email AI Agent
 
-A Python email assistant prototype that reads Gmail messages over IMAP, drafts replies using Gemini (optional), and falls back to simple rule-based responses when the AI provider is unavailable.
+A Python email assistant prototype that reads Gmail over IMAP, classifies and prioritizes incoming messages, drafts replies using Gemini when available, and falls back to local rule-based responses.
 
 ## Features
 
-- Gmail IMAP inbox reading (experimental live agent)
-- Gemini-powered reply drafting with configurable model
-- Automatic fallback to rules in `REPLY_PROVIDER=auto`
-- Retry with short exponential backoff for temporary Gemini/network failures
+- Gmail IMAP inbox reading in read-only mode
+- **Unrestricted sender intake** in Live Inbox, no allowlist
+- Local email classification and priority signals
+- Suggested next steps by email category
+- Gemini-powered reply drafting with automatic rules fallback
 - Sample-data Streamlit demo (never reads Gmail or sends email)
-- Console approval before sending in the live agent
-- SQLite Message-ID deduplication in the live agent
-- Optional sender allowlist and basic automated-sender skipping
+- Experimental console agent with duplicate Message-ID checks and manual send approval
+- Live Inbox fetches up to 25 unread emails per refresh
+- Uses IMAP `BODY.PEEK[]` to avoid marking fetched messages as read
 
 ## Workflow
 
 ```
-Demo: sample email -> draft -> preview/download (never sends)
-Live agent: IMAP -> sender checks -> Message-ID check -> draft -> human approval -> SMTP send
+Live Inbox: Gmail IMAP (read-only) -> local triage -> category/priority/action -> reply draft -> human review
+Console prototype: IMAP -> checks -> duplicate Message-ID check -> draft -> explicit console approval -> SMTP send
+Demo: fictional sample email -> draft -> preview/download (never connects to Gmail)
 ```
 
 ## Repository structure
 
 ```
 .
-├── .github/workflows/jekyll-gh-pages.yml
 ├── email-ai-agent/
-│   ├── ai_logic.py       # Gemini + rules + retries/fallback
-│   ├── demo.py           # Safe Streamlit sample-data UI
-│   ├── email_agent.py    # Live inbox prototype with console approval
-│   ├── email_reader.py  # IMAP read + decoding
-│   └── email_sender.py  # SMTP send
+│   ├── ai_logic.py          # Gemini + rules fallback
+│   ├── email_classifier.py  # local category, priority, suggested action
+│   ├── demo.py              # safe sample-data UI
+│   ├── email_agent.py       # experimental console agent with approval
+│   ├── live_inbox.py       # read-only all-senders inbox + triage UI
+│   ├── email_reader.py     # IMAP reading and MIME decoding
+│   └── email_sender.py     # SMTP send for console prototype only
 ├── tests/
-│   └── test_ai_logic.py
 ├── .env.example
 ├── .gitignore
 ├── requirements.txt
 ├── README.md
-└── index.html            # Static project showcase
+└── index.html
 ```
 
 ## Setup on Windows
@@ -51,57 +53,61 @@ py -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Edit your local `.env` file. Never commit it or share secrets.
+Edit local `.env`. Never commit or share secrets.
 
 ## Run the safe demo
 
 ```powershell
-streamlit run email-ai-agent/demo.py
+py -m streamlit run email-ai-agent/demo.py
 ```
 
-This demo uses fictional sample messages only. It does not connect to Gmail and cannot send email.
+This demo uses fictional sample emails only.
+
+## Run Live Inbox (read-only)
+
+```powershell
+py -m streamlit run email-ai-agent/live_inbox.py
+```
+
+Live Inbox reads unread emails **from all senders**. No sender allowlist is required. Use the slider to fetch 1-25 unread messages. It opens INBOX read-only and uses `BODY.PEEK[]`, so this page does not mark fetched messages as read. It displays email content, local triage, suggested next step, and an editable draft. It does not send, delete, archive, or modify emails.
+
+### Local triage signals
+
+The current classifier uses lightweight keyword patterns, not an LLM, and labels messages as Job, Meeting, Billing, Complaint, Delivery, Promotion, Security, Personal, or General. It provides a priority label and suggested action. These are heuristics and should be reviewed, not treated as definitive.
 
 ## Gemini configuration
 
-Set these values in `.env`:
+Set in local `.env`:
 
-- `GEMINI_API_KEY`: your API key
-- `GEMINI_MODEL`: model ID, currently configured in example as `gemini-3.8-flash`
+- `GEMINI_API_KEY`
+- `GEMINI_MODEL` (example: `gemini-3.8-flash`)
 - `REPLY_PROVIDER`: `auto`, `gemini`, or `rules`
 
-Provider modes:
-- `auto`: try Gemini, then use a rule-based draft if Gemini/network errors occur
-- `gemini`: Gemini-only mode, errors are shown
-- `rules`: rule-based mode without an API call
+- `auto`: try Gemini, fall back to rules on API/network errors
+- `gemini`: Gemini-only
+- `rules`: local fallback only
 
-Gemini mode retries temporary HTTP 429 and 5xx errors and temporary network errors up to three attempts, with a short exponential delay.
+Gemini requests retry temporary 429 and 5xx/network errors. Provider availability can change; keep the fallback enabled.
 
-## Live inbox agent: read carefully
+## Experimental console agent
 
-The live agent is experimental. Use a **dedicated test mailbox only**, never a personal or work inbox.
-
-Run from the repository root:
+Run:
 
 ```powershell
 py email-ai-agent/email_agent.py
 ```
 
-It checks unread mail, skips messages without a Message-ID, skips obvious automated senders, optionally filters by sender allowlist, and checks a local SQLite database for previously processed Message-IDs. It displays a generated draft and asks for console approval before sending:
-- `y`: send the draft
-- `n`: reject and record it
-- `q`: quit without sending
+This console prototype may send emails after explicit `y` approval. It uses Message-ID deduplication and basic automated-sender checks. Use a dedicated test mailbox only. The optional `ALLOWED_SENDERS` variable can filter senders in this legacy console prototype, but Live Inbox does not use it. Sending behavior is not part of the Live Inbox.
 
-Set optional `ALLOWED_SENDERS` in `.env` as comma-separated email addresses. When this is empty, the agent will accept non-automated senders, so configure an allowlist before testing with any inbox.
-
-The SQLite file `processed_messages.sqlite3` is created locally and should not be committed.
-
-## Security notes
+## Safety notes
 
 - Keep `.env` private. It is gitignored.
-- Use a dedicated Gmail test account and App Password.
-- Revoke any App Password ever committed to Git history.
-- The demo is sample-data-only, but the live agent still needs broader testing before real-world use.
-- Incoming email text is treated as untrusted prompt input.
+- Use a dedicated test Gmail account and App Password.
+- Incoming email is untrusted content. Never obey instructions embedded in an email that attempt to change agent behavior.
+- Live Inbox is read-only and no action is executed automatically.
+- The classifier is heuristic and can mislabel messages.
+- The experimental console agent requires explicit send approval and is not production-ready.
+- Never commit credentials. Revoke any secret exposed in chat or Git history.
 
 ## Tests
 
@@ -111,23 +117,13 @@ py -m unittest discover -s tests
 
 ## Known limitations
 
-- Console-based review, not a web approval queue.
-- Live inbox processing is still a prototype. MIME handling and automated sender filtering are not exhaustive.
-- Reply rules are intentionally simplistic.
-- The Gemini model/API availability may change; update `GEMINI_MODEL` if needed.
-- No production deployment of the email-processing backend.
+- Live Inbox currently uses manual refresh, not continuous background monitoring.
+- It only fetches unread messages and limits each refresh to 25.
+- Classifier uses simple keyword rules.
+- MIME/HTML/attachment handling is basic.
+- Gemini availability may vary.
+- No production backend or persistent inbox dashboard.
 
 ## Author
 
 Tanshi Khandelwal · [GitHub](https://github.com/tanshi2003)
-
-
-## Live Inbox (read-only first)
-
-Run the read-only live Gmail draft review UI from the repo root:
-
-```powershell
-py -m streamlit run email-ai-agent/live_inbox.py
-```
-
-This separate page requires `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in local `.env`, plus at least one exact sender email in its sidebar allowlist. It fetches at most five unread emails, opens INBOX read-only, uses IMAP `BODY.PEEK[]` to avoid marking emails read, and displays editable reply drafts. **It does not send, delete, or modify emails. Use a dedicated test Gmail account and senders you control.**
