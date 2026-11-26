@@ -58,3 +58,43 @@ def read_latest_email(username, password):
             mail.logout()
         except Exception:
             pass
+
+
+def read_unread_emails(username, password, allowlist, limit=5):
+    """Return at most 5 unread emails from exact allowlisted senders, read-only."""
+    normalized = {address.strip().lower() for address in (allowlist or []) if address.strip()}
+    if not normalized:
+        raise ValueError("A sender allowlist is required. Add at least one exact email address.")
+    if limit < 1 or limit > 5:
+        raise ValueError("Live inbox reader limit must be between 1 and 5.")
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    try:
+        mail.login(username, password)
+        status, _ = mail.select("INBOX", readonly=True)
+        if status != "OK":
+            raise RuntimeError("Could not open Gmail inbox in read-only mode.")
+        status, data = mail.search(None, "UNSEEN")
+        if status != "OK" or not data or not data[0].strip():
+            return []
+        message_ids = data[0].split()[-limit:]
+        results = []
+        for uid in reversed(message_ids):
+            status, parts = mail.fetch(uid, "(BODY.PEEK[])")
+            if status != "OK" or not parts or not isinstance(parts[0], tuple):
+                continue
+            msg = email.message_from_bytes(parts[0][1])
+            sender = parseaddr(msg.get("From", ""))[1].strip()
+            if sender.lower() not in normalized:
+                continue
+            results.append({
+                "sender": sender,
+                "subject": _decode_header_value(msg.get("Subject", "")),
+                "body": _plain_body(msg),
+                "message_id": (msg.get("Message-ID") or "").strip(),
+            })
+        return results
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
