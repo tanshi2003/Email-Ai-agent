@@ -39,7 +39,7 @@ def classify(sender, subject, body):
         if any(t in text for t in terms): category=name; break
     urgent=any(x in text for x in ("urgent","asap","immediately","today","deadline","action required","final notice","overdue"))
     automated=any(x in sender for x in ("no-reply","noreply","do-not-reply","mailer-daemon","newsletter")) or category=="Promotion"
-    priority="High" if urgent or category in ("Security","Complaint","Job") else "Low" if automated else "Normal"
+    priority="High" if category in ("Security","Complaint","Job") or (urgent and category!="Promotion") else "Low" if automated or category=="Promotion" else "Normal"
     reasons="Urgency or deadline wording detected." if urgent else f"Message patterns matched the {category.lower()} category."
     actions={"Security":"Verify directly through the official site or app. Never share passwords or OTPs.","Job":"Review the opportunity and decide whether to respond.","Complaint":"Review the issue and prepare a careful response.","Meeting":"Check the proposed time and confirm or ask for details.","Billing":"Verify amounts and account details before taking action.","Delivery":"Check tracking before promising an update.","Promotion":"No reply is usually needed. Consider ignoring it.","Personal":"Reply naturally if a response is appropriate.","General":"Read the message and decide whether it needs a reply."}
     return {"category":category,"priority":priority,"automated":automated,"reason":reasons,"suggested_action":actions[category]}
