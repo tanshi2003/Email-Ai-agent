@@ -1,7 +1,11 @@
 """Local sample-data demo. Never connects to or sends from a real inbox."""
+import os
 import streamlit as st
+from dotenv import load_dotenv
 
 from ai_logic import generate_reply
+
+load_dotenv()
 
 st.set_page_config(page_title="MailMind | Email Agent Demo", page_icon="✉️", layout="wide")
 
@@ -53,8 +57,11 @@ with right:
         st.session_state["source"] = sample
     if "draft" in st.session_state:
         st.success("Draft generated · Not sent")
-        st.text_area("Reply draft", value=st.session_state["draft"], height=210, key="draft_output")
-        st.info("The current repository reply engine uses keyword-based rules. Configure a Gemini API key to enable LLM-generated drafts.")
+        st.text_area("Reply draft", height=210, key="draft_output")
+        if os.getenv("GEMINI_API_KEY"):
+            st.caption("Generated with the configured Gemini API provider.")
+        else:
+            st.caption("Generated with the built-in rule-based fallback. Add GEMINI_API_KEY to enable Gemini drafts.")
         st.download_button("Download draft", data=st.session_state["draft"], file_name="email-reply-draft.txt", mime="text/plain", use_container_width=True)
     else:
         st.info("Your generated reply will appear here. Nothing is sent from this demo.")
