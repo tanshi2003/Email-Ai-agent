@@ -1,17 +1,18 @@
-"""Read-only live Gmail draft review UI for MailMind. No sending capability."""
+"""Read-only MailMind inbox triage UI. No send/delete/archive actions."""
 import os
 import streamlit as st
 from dotenv import load_dotenv
 
 from email_reader import read_unread_emails
 from ai_logic import generate_reply
+from email_classifier import classify_email
 
 load_dotenv()
 st.set_page_config(page_title="MailMind | Live Inbox", page_icon="✉️", layout="wide")
 st.title("MailMind · Live Inbox")
-st.caption("Read-only inbox connection · Up to 5 unread messages · Drafts are never sent from this page.")
+st.caption("Unrestricted sender inbox · Read-only Gmail · Drafts are never sent from this page.")
 
-st.warning("Use a dedicated Gmail test mailbox. This page only reads email and generates editable drafts. It has no send action.")
+st.info("MailMind reads unread messages from **all senders**. It does not send, delete, archive, or mark emails as read")
 username = os.getenv("GMAIL_USERNAME", "").strip()
 password = os.getenv("GMAIL_APP_PASSWORD", "").strip()
 if not username or not password:
@@ -19,41 +20,45 @@ if not username or not password:
     st.stop()
 
 with st.sidebar:
-    st.header("Safety settings")
-    allowlist_raw = st.text_area("Approved sender addresses (comma-separated)", value=os.getenv("ALLOWED_SENDERS", ""), help="Required. Only exact sender addresses listed here are loaded.")
-    allowlist = [a.strip().lower() for a in allowlist_raw.split(",") if a.strip()]
-    st.caption("Exact-match allowlist is required. Inbox is opened read-only.")
-    st.caption("Maximum fetch: 5 unread emails per refresh.")
-
-if not allowlist:
-    st.info("Add at least one approved sender email address in the sidebar, then refresh the inbox.")
-    st.stop()
+    st.header("Inbox controls")
+    limit = st.slider("Emails per refresh", min_value=1, max_value=25, value=10)
+    st.caption("No sender allowlist. All unread senders are eligible.")
+    st.caption("Messages are fetched with IMAP read-only mode and BODY.PEEK.")
 
 if st.button("Refresh unread inbox", type="primary"):
     try:
-        with st.spinner("Connecting securely and reading approved unread messages..."):
-            st.session_state["live_emails"] = read_unread_emails(username, password, allowlist, limit=5)
-            st.session_state["live_allowlist"] = allowlist
+        with st.spinner("Reading unread messages from all senders..."):
+            st.session_state["live_emails"] = read_unread_emails(username, password, limit=limit)
             st.session_state.pop("live_error", None)
     except Exception as exc:
         st.session_state["live_error"] = f"Inbox connection failed: {exc}"
 
 if st.session_state.get("live_error"):
     st.error(st.session_state["live_error"])
-emails = [item for item in st.session_state.get("live_emails", []) if item["sender"].strip().lower() in set(allowlist)]
+
+emails = st.session_state.get("live_emails", [])
 if emails:
-    st.success(f"Loaded {len(emails)} approved unread email(s).")
+    st.success(f"Loaded {len(emails)} unread email(s) from any sender.")
     for idx, item in enumerate(emails):
-        with st.expander(f"{idx + 1}. {item['subject'] or '(no subject)'} · {item['sender']}", expanded=(idx == 0)):
+        triage = classify_email(item["sender"], item["subject"], item["body"])
+        label = f"{idx + 1}. [{triage['priority']}] {item['subject'] or '(no subject)'} · {item['sender']}"
+        with st.expander(label, expanded=(idx == 0)):
             st.markdown("**From**")
             st.write(item["sender"])
             st.markdown("**Subject**")
             st.write(item["subject"])
+            cols = st.columns(3)
+            cols[0].metric("Category", triage["category"])
+            cols[1].metric("Priority", triage["priority"])
+            cols[2].metric("Automated", "Likely" if triage["automated"] else "Unlikely")
+            st.caption(triage["reason"])
+            st.markdown("**Suggested next step**")
+            st.write(triage["suggested_action"])
             st.markdown("**Email body**")
             st.text_area("Original message", value=item["body"], height=170, disabled=True, key=f"live_body_{idx}")
             draft_key = f"live_draft_{idx}"
             if st.button("Generate reply draft", key=f"live_generate_{idx}"):
-                context = f"From: {item['sender']}\nSubject: {item['subject']}\n\n{item['body']}"
+                context = f"From: {item['sender']}\nSubject: {item['subject']}\nCategory: {triage['category']}\n\nEmail body:\n{item['body']}"
                 try:
                     draft, provider, warning = generate_reply(context, return_provider=True)
                     st.session_state[draft_key] = draft
@@ -66,14 +71,16 @@ if emails:
                 st.text_area("Review and edit before copying", key=draft_key, height=190)
                 provider = st.session_state.get(f"live_provider_{idx}", "rules")
                 st.caption("Draft provider: " + ("Gemini" if provider == "gemini" else "Rules fallback"))
+                warning = st.session_state.get(f"live_warning_{idx}")
+                if warning:
+                    st.warning("Gemini is unavailable, so MailMind used its local fallback draft.")
                 if st.button("Clear draft", key=f"live_clear_{idx}"):
                     st.session_state.pop(draft_key, None)
                     st.rerun()
             if st.session_state.get(f"live_error_{idx}"):
                 st.error(st.session_state[f"live_error_{idx}"])
-else:
-    if "live_emails" in st.session_state:
-        st.info("No unread messages from the approved sender addresses were found.")
+elif "live_emails" in st.session_state:
+    st.info("No unread emails found. Send an email to the connected mailbox or check Gmail's Inbox/Spam folders.")
 
 st.divider()
-st.caption("MailMind live inbox · Read-only prototype · Nothing is sent or marked as read by this page.")
+st.caption("MailMind triage · Experimental prototype · No email actions are executed automatically.")
