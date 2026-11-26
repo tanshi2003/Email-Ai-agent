@@ -40,7 +40,7 @@ if st.button("Refresh unread inbox", type="primary"):
 
 if st.session_state.get("live_error"):
     st.error(st.session_state["live_error"])
-emails = st.session_state.get("live_emails", [])
+emails = [item for item in st.session_state.get("live_emails", []) if item["sender"].strip().lower() in set(allowlist)]
 if emails:
     st.success(f"Loaded {len(emails)} approved unread email(s).")
     for idx, item in enumerate(emails):
