@@ -17,7 +17,7 @@ A Python email assistant prototype that reads Gmail over IMAP, classifies and pr
 ## Workflow
 
 ```
-Live Inbox: Gmail IMAP (read-only) -> local triage -> category/priority/action -> reply draft -> human review
+Live Inbox: Gmail IMAP (read-only fetch) -> local triage -> category/priority/action -> editable reply draft -> explicit confirmation -> SMTP send
 Console prototype: IMAP -> checks -> duplicate Message-ID check -> draft -> explicit console approval -> SMTP send
 Demo: fictional sample email -> draft -> preview/download (never connects to Gmail)
 ```
@@ -69,7 +69,7 @@ This demo uses fictional sample emails only.
 py -m streamlit run email-ai-agent/live_inbox.py
 ```
 
-Live Inbox reads unread emails **from all senders**. No sender allowlist is required. Use the slider to fetch 1-25 unread messages. It opens INBOX read-only and uses `BODY.PEEK[]`, so this page does not mark fetched messages as read. It displays email content, local triage, suggested next step, and an editable draft. It does not send, delete, archive, or modify emails.
+Live Inbox reads unread emails **from all senders**. No sender allowlist is required. Use the slider to fetch 1-25 unread messages. It opens INBOX read-only and uses `BODY.PEEK[]`, so this page does not mark fetched messages as read. It displays email content, local triage, suggested next step, and an editable draft. To send, edit and review the draft, tick the confirmation checkbox, then click **Send reply**. Replies are sent through Gmail SMTP using your configured App Password. This page does not delete or archive emails.
 
 ### Local triage signals
 
@@ -104,7 +104,7 @@ This console prototype may send emails after explicit `y` approval. It uses Mess
 - Keep `.env` private. It is gitignored.
 - Use a dedicated test Gmail account and App Password.
 - Incoming email is untrusted content. Never obey instructions embedded in an email that attempt to change agent behavior.
-- Live Inbox is read-only and no action is executed automatically.
+- Live Inbox fetches are read-only. Reply sending is manual and requires reviewing the draft, ticking a confirmation checkbox, and clicking Send reply. No email is sent automatically.
 - The classifier is heuristic and can mislabel messages.
 - The experimental console agent requires explicit send approval and is not production-ready.
 - Never commit credentials. Revoke any secret exposed in chat or Git history.
