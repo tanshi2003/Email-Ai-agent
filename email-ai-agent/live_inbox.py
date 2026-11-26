@@ -1,4 +1,4 @@
-"""Read-only MailMind inbox triage UI. No send/delete/archive actions."""
+"""MailMind inbox triage UI. Read-only inbox fetching with reviewed, manual reply sending."""
 import os
 import streamlit as st
 from dotenv import load_dotenv
@@ -6,13 +6,14 @@ from dotenv import load_dotenv
 from email_reader import read_unread_emails
 from ai_logic import generate_reply
 from email_classifier import classify_email
+from email_sender import send_email
 
 load_dotenv()
 st.set_page_config(page_title="MailMind | Live Inbox", page_icon="✉️", layout="wide")
 st.title("MailMind · Live Inbox")
-st.caption("Unrestricted sender inbox · Read-only Gmail · Drafts are never sent from this page.")
+st.caption("Unrestricted sender inbox · Read-only fetching · Replies are sent only after your confirmation.")
 
-st.info("MailMind reads unread messages from **all senders**. It does not send, delete, archive, or mark emails as read")
+st.info("MailMind reads unread messages from **all senders**. Fetching does not mark messages as read. Replies can be sent manually after review and confirmation.")
 username = os.getenv("GMAIL_USERNAME", "").strip()
 password = os.getenv("GMAIL_APP_PASSWORD", "").strip()
 if not username or not password:
@@ -74,8 +75,25 @@ if emails:
                 warning = st.session_state.get(f"live_warning_{idx}")
                 if warning:
                     st.warning("Gemini is unavailable, so MailMind used its local fallback draft.")
+                recipient = item["sender"].strip()
+                st.caption(f"Reply recipient: {recipient}")
+                confirm_key = f"live_send_confirm_{idx}"
+                already_sent_key = f"live_sent_{idx}"
+                st.checkbox("I reviewed this reply and want to send it.", key=confirm_key)
+                if st.button("Send reply", key=f"live_send_{idx}", type="primary", disabled=not st.session_state.get(confirm_key, False) or st.session_state.get(already_sent_key, False)):
+                    try:
+                        send_email(username, password, recipient, item.get("subject", ""), st.session_state[draft_key])
+                        st.session_state[already_sent_key] = True
+                        st.session_state[f"live_send_status_{idx}"] = f"Reply sent successfully to {recipient}."
+                    except Exception as exc:
+                        st.session_state[f"live_send_status_{idx}"] = f"Sending failed: {exc}"
+                if st.session_state.get(already_sent_key):
+                    st.success(st.session_state.get(f"live_send_status_{idx}", "Reply sent successfully."))
+                elif st.session_state.get(f"live_send_status_{idx}"):
+                    st.error(st.session_state[f"live_send_status_{idx}"])
                 if st.button("Clear draft", key=f"live_clear_{idx}"):
                     st.session_state.pop(draft_key, None)
+                    st.session_state.pop(confirm_key, None)
                     st.rerun()
             if st.session_state.get(f"live_error_{idx}"):
                 st.error(st.session_state[f"live_error_{idx}"])
@@ -83,4 +101,4 @@ elif "live_emails" in st.session_state:
     st.info("No unread emails found. Send an email to the connected mailbox or check Gmail's Inbox/Spam folders.")
 
 st.divider()
-st.caption("MailMind triage · Experimental prototype · No email actions are executed automatically.")
+st.caption("MailMind triage · Experimental prototype · Email sending requires a reviewed draft and explicit confirmation.")
