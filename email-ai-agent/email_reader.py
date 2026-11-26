@@ -1,4 +1,4 @@
-"""Read the newest unread Gmail message and decode its plain-text body."""
+"""Read unread Gmail messages over IMAP without marking them as read."""
 import email
 import imaplib
 from email.header import decode_header
@@ -24,22 +24,20 @@ def _plain_body(msg):
                 continue
             payload = part.get_payload(decode=True)
             if payload is not None:
-                charset = part.get_content_charset() or "utf-8"
-                candidates.append(payload.decode(charset, errors="replace"))
+                candidates.append(payload.decode(part.get_content_charset() or "utf-8", errors="replace"))
     else:
         payload = msg.get_payload(decode=True)
         if payload is not None:
-            charset = msg.get_content_charset() or "utf-8"
-            candidates.append(payload.decode(charset, errors="replace"))
+            candidates.append(payload.decode(msg.get_content_charset() or "utf-8", errors="replace"))
     return "\n".join(candidates).strip()
 
 
 def read_latest_email(username, password):
-    """Returns (sender_address, subject, body, message_id); returns Nones when no mail."""
+    """Returns (sender, subject, body, message_id), or Nones when no unread email."""
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
     try:
         mail.login(username, password)
-        mail.select("inbox")
+        mail.select("INBOX", readonly=True)
         status, messages = mail.search(None, "UNSEEN")
         if status != "OK" or not messages or not messages[0].strip():
             return None, None, None, None
@@ -48,11 +46,7 @@ def read_latest_email(username, password):
         if status != "OK" or not data or not isinstance(data[0], tuple):
             return None, None, None, None
         msg = email.message_from_bytes(data[0][1])
-        sender_address = parseaddr(msg.get("From", ""))[1]
-        subject = _decode_header_value(msg.get("Subject", ""))
-        body = _plain_body(msg)
-        message_id = (msg.get("Message-ID") or "").strip()
-        return sender_address, subject, body, message_id
+        return parseaddr(msg.get("From", ""))[1], _decode_header_value(msg.get("Subject", "")), _plain_body(msg), (msg.get("Message-ID") or "").strip()
     finally:
         try:
             mail.logout()
@@ -60,13 +54,10 @@ def read_latest_email(username, password):
             pass
 
 
-def read_unread_emails(username, password, allowlist, limit=5):
-    """Return at most 5 unread emails from exact allowlisted senders, read-only."""
-    normalized = {address.strip().lower() for address in (allowlist or []) if address.strip()}
-    if not normalized:
-        raise ValueError("A sender allowlist is required. Add at least one exact email address.")
-    if limit < 1 or limit > 5:
-        raise ValueError("Live inbox reader limit must be between 1 and 5.")
+def read_unread_emails(username, password, limit=10):
+    """Return unread emails from all senders, newest first, in read-only mode."""
+    if limit < 1 or limit > 25:
+        raise ValueError("Inbox fetch limit must be between 1 and 25.")
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
     try:
         mail.login(username, password)
@@ -76,21 +67,19 @@ def read_unread_emails(username, password, allowlist, limit=5):
         status, data = mail.search(None, "UNSEEN")
         if status != "OK" or not data or not data[0].strip():
             return []
-        message_ids = data[0].split()[-limit:]
+        ids = data[0].split()[-limit:]
         results = []
-        for uid in reversed(message_ids):
+        for uid in reversed(ids):
             status, parts = mail.fetch(uid, "(BODY.PEEK[])")
             if status != "OK" or not parts or not isinstance(parts[0], tuple):
                 continue
             msg = email.message_from_bytes(parts[0][1])
-            sender = parseaddr(msg.get("From", ""))[1].strip()
-            if sender.lower() not in normalized:
-                continue
             results.append({
-                "sender": sender,
+                "sender": parseaddr(msg.get("From", ""))[1].strip(),
                 "subject": _decode_header_value(msg.get("Subject", "")),
                 "body": _plain_body(msg),
                 "message_id": (msg.get("Message-ID") or "").strip(),
+                "imap_id": uid.decode("ascii", errors="ignore"),
             })
         return results
     finally:
