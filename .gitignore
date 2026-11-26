@@ -5,11 +5,16 @@ __pycache__/
 .Python
 env/
 venv/
+.venv/
 .env
 .env.*
 !.env.example
-.venv
 *.log
+*.sqlite
+*.sqlite3
+*.db
 .vscode/
+.idea/
+.agents/
 *.swp
 .DS_Store
