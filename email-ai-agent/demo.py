@@ -52,6 +52,7 @@ with right:
         try:
             draft, used_provider, warning = generate_reply(email_input, return_provider=True)
             st.session_state["draft"] = draft
+            st.session_state["draft_output"] = draft
             st.session_state["draft_provider"] = used_provider
             if warning:
                 st.session_state["draft_warning"] = warning
@@ -72,6 +73,7 @@ with right:
                 try:
                     retry_draft = generate_reply(st.session_state.get("current_email", email_input), provider="gemini")
                     st.session_state["draft"] = retry_draft
+                    st.session_state["draft_output"] = retry_draft
                     st.session_state["draft_provider"] = "gemini"
                     st.session_state.pop("draft_warning", None)
                     st.session_state.pop("draft_error", None)
