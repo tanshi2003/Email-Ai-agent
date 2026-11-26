@@ -94,7 +94,7 @@ python -m pip install -r requirements.txt
 4. Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` if you plan to connect your test mailbox.
 5. Optionally set `GEMINI_API_KEY` to enable Gemini-generated drafts. You can keep `REPLY_PROVIDER=auto`.
 
-Never use your normal Google password. Never commit `.env` or share an App Password.
+Never use your normal Google password. Never commit `.env` or share an App Password. The optional Gemini provider uses `GEMINI_API_KEY`; leave it unset to use the deterministic rule-based fallback.
 
 ### 5. Run the local interactive demo (sample data only)
 
