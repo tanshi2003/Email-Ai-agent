@@ -1,44 +1,46 @@
 # MailMind | Email AI Agent
 
-A Python email assistant prototype that reads inbox messages over Gmail IMAP, generates reply drafts using Gemini (optional), and uses deterministic rule-based fallback.
-
-> **Safety note:** The live inbox script is currently a prototype and sends automatically. Do not run it against a personal or work inbox. Use a dedicated test account only.
+A Python email assistant prototype that reads Gmail messages over IMAP, drafts replies using Gemini (optional), and falls back to simple rule-based responses when the AI provider is unavailable.
 
 ## Features
 
-- Gmail inbox reading over IMAP SSL
-- Reply drafting with optional Gemini API
-- Configurable model and request timeout
-- Rule-based fallback draft generation
-- Sample-only Streamlit showcase that never connects to Gmail or sends
-- Environment-based credentials
+- Gmail IMAP inbox reading (experimental live agent)
+- Gemini-powered reply drafting with configurable model
+- Automatic fallback to rules in `REPLY_PROVIDER=auto`
+- Retry with short exponential backoff for temporary Gemini/network failures
+- Sample-data Streamlit demo (never reads Gmail or sends email)
+- Console approval before sending in the live agent
+- SQLite Message-ID deduplication in the live agent
+- Optional sender allowlist and basic automated-sender skipping
 
 ## Workflow
 
-```text
-Sample demo: sample email -> draft -> preview (never sends)
-Live agent (prototype): IMAP -> generate reply -> SMTP send
+```
+Demo: sample email -> draft -> preview/download (never sends)
+Live agent: IMAP -> sender checks -> Message-ID check -> draft -> human approval -> SMTP send
 ```
 
 ## Repository structure
 
-```text
+```
 .
 ├── .github/workflows/jekyll-gh-pages.yml
 ├── email-ai-agent/
-│   ├── ai_logic.py
-│   ├── demo.py
-│   ├── email_agent.py
-│   ├── email_reader.py
-│   └── email_sender.py
-├── requirements.txt
+│   ├── ai_logic.py       # Gemini + rules + retries/fallback
+│   ├── demo.py           # Safe Streamlit sample-data UI
+│   ├── email_agent.py    # Live inbox prototype with console approval
+│   ├── email_reader.py  # IMAP read + decoding
+│   └── email_sender.py  # SMTP send
+├── tests/
+│   └── test_ai_logic.py
 ├── .env.example
 ├── .gitignore
+├── requirements.txt
 ├── README.md
-└── index.html
+└── index.html            # Static project showcase
 ```
 
-## Setup (Windows)
+## Setup on Windows
 
 ```powershell
 git clone https://github.com/tanshi2003/Email-Ai-agent.git
@@ -49,38 +51,71 @@ py -m pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Add Gemini key/model and optional Gmail credentials in the local `.env` file. Never commit this file or an App Password.
+Edit your local `.env` file. Never commit it or share secrets.
 
-## Run the local safe demo
+## Run the safe demo
 
 ```powershell
 streamlit run email-ai-agent/demo.py
 ```
 
-The demo uses sample email data only. It never connects to Gmail or sends messages.
+This demo uses fictional sample messages only. It does not connect to Gmail and cannot send email.
 
-## Gemini settings
+## Gemini configuration
 
-- `REPLY_PROVIDER=auto`: use Gemini when configured, otherwise rule-based fallback.
-- `REPLY_PROVIDER=gemini`: require Gemini and report API errors.
-- `REPLY_PROVIDER=rules`: rule-based replies only.
-- `GEMINI_MODEL`: model identifier used by the Gemini API.
+Set these values in `.env`:
 
-## Live inbox prototype
+- `GEMINI_API_KEY`: your API key
+- `GEMINI_MODEL`: model ID, currently configured in example as `gemini-3.8-flash`
+- `REPLY_PROVIDER`: `auto`, `gemini`, or `rules`
 
-The current live script reads unread messages and sends replies automatically. **Do not use it with a personal/work inbox.** Before real inbox use, implement sender allowlisting, duplicate-message protection, a draft approval step, safe MIME handling, and logging.
+Provider modes:
+- `auto`: try Gemini, then use a rule-based draft if Gemini/network errors occur
+- `gemini`: Gemini-only mode, errors are shown
+- `rules`: rule-based mode without an API call
 
-If an App Password was ever committed to repository history, revoke it in Google Account security and replace it. Removing it from the latest code does not remove it from Git history.
+Gemini mode retries temporary HTTP 429 and 5xx errors and temporary network errors up to three attempts, with a short exponential delay.
 
-## Roadmap
+## Live inbox agent: read carefully
 
-- [ ] Approval gate before sending live replies
-- [ ] Message-ID deduplication
-- [ ] Sender allowlist and auto-mail filtering
-- [ ] Unit tests
-- [x] Gemini reply provider with prompt constraints
-- [ ] Retry/backoff and graceful fallback for temporary API outages
-- [x] Sample-data Streamlit demo
+The live agent is experimental. Use a **dedicated test mailbox only**, never a personal or work inbox.
+
+Run from the repository root:
+
+```powershell
+py email-ai-agent/email_agent.py
+```
+
+It checks unread mail, skips messages without a Message-ID, skips obvious automated senders, optionally filters by sender allowlist, and checks a local SQLite database for previously processed Message-IDs. It displays a generated draft and asks for console approval before sending:
+- `y`: send the draft
+- `n`: reject and record it
+- `q`: quit without sending
+
+Set optional `ALLOWED_SENDERS` in `.env` as comma-separated email addresses. When this is empty, the agent will accept non-automated senders, so configure an allowlist before testing with any inbox.
+
+The SQLite file `processed_messages.sqlite3` is created locally and should not be committed.
+
+## Security notes
+
+- Keep `.env` private. It is gitignored.
+- Use a dedicated Gmail test account and App Password.
+- Revoke any App Password ever committed to Git history.
+- The demo is sample-data-only, but the live agent still needs broader testing before real-world use.
+- Incoming email text is treated as untrusted prompt input.
+
+## Tests
+
+```powershell
+py -m unittest discover -s tests
+```
+
+## Known limitations
+
+- Console-based review, not a web approval queue.
+- Live inbox processing is still a prototype. MIME handling and automated sender filtering are not exhaustive.
+- Reply rules are intentionally simplistic.
+- The Gemini model/API availability may change; update `GEMINI_MODEL` if needed.
+- No production deployment of the email-processing backend.
 
 ## Author
 
