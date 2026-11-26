@@ -1,8 +1,8 @@
 """Inbox monitoring entry point.
 
 Credentials are read from environment variables. Never hard-code app passwords.
-The current reply generator is rule-based; configure an LLM provider separately
-before describing the project as LLM-powered.
+Set GEMINI_API_KEY to enable Gemini-generated replies; otherwise the reply engine
+uses the deterministic rule-based fallback.
 """
 import os
 import time
