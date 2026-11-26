@@ -120,3 +120,14 @@ py -m unittest discover -s tests
 ## Author
 
 Tanshi Khandelwal · [GitHub](https://github.com/tanshi2003)
+
+
+## Live Inbox (read-only first)
+
+Run the read-only live Gmail draft review UI from the repo root:
+
+```powershell
+py -m streamlit run email-ai-agent/live_inbox.py
+```
+
+This separate page requires `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in local `.env`, plus at least one exact sender email in its sidebar allowlist. It fetches at most five unread emails, opens INBOX read-only, uses IMAP `BODY.PEEK[]` to avoid marking emails read, and displays editable reply drafts. **It does not send, delete, or modify emails. Use a dedicated test Gmail account and senders you control.**
