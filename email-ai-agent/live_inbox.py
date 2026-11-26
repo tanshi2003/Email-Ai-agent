@@ -110,8 +110,7 @@ if emails:
                     provider = st.session_state.get(f"live_provider_{idx}", "rules")
                     st.caption("Draft engine: " + ("Gemini AI" if provider == "gemini" else "Local rules fallback"))
                     warning = st.session_state.get(f"live_warning_{idx}")
-                    if warning:
-                        st.warning("Gemini unavailable. A local fallback draft was generated.")
+                    # Provider fallback is already shown in the draft-engine caption; avoid a redundant warning banner.
                     recipient = item["sender"].strip()
                     st.caption(f"Reply recipient · {recipient}")
                     confirm_key = f"live_send_confirm_{idx}"
