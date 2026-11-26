@@ -1,67 +1,60 @@
-import imaplib
+"""Read the newest unread Gmail message and decode its plain-text body."""
 import email
+import imaplib
 from email.header import decode_header
+from email.utils import parseaddr
 
-def read_latest_email(username, password):
-    mail = imaplib.IMAP4_SSL("imap.gmail.com")
-    mail.login(username, password)
-    mail.select("inbox")
 
-    # Search for all unread messages
-    status, messages = mail.search(None, 'UNSEEN')
-    messages = messages[0].split()
+def _decode_header_value(value):
+    parts = decode_header(value or "")
+    decoded = []
+    for part, encoding in parts:
+        if isinstance(part, bytes):
+            decoded.append(part.decode(encoding or "utf-8", errors="replace"))
+        else:
+            decoded.append(part)
+    return "".join(decoded)
 
-    if not messages:
-        return None, None, None
 
-    latest_email_id = messages[-1]
-    status, data = mail.fetch(latest_email_id, "(RFC822)")
-    raw_email = data[0][1]
-    msg = email.message_from_bytes(raw_email)
-
-    subject, encoding = decode_header(msg["Subject"])[0]
-    if isinstance(subject, bytes):
-        subject = subject.decode(encoding if encoding else "utf-8")
-
-    from_ = msg.get("From")
-
-    # Extract email body
-    body = ""
+def _plain_body(msg):
+    candidates = []
     if msg.is_multipart():
         for part in msg.walk():
-            if part.get_content_type() == "text/plain":
-                try:
-                    # Try to get the charset from the message part
-                    charset = part.get_content_charset() or 'utf-8'
-                    payload = part.get_payload(decode=True)
-                    # Try different encodings if the first attempt fails
-                    for encoding in [charset, 'utf-8', 'iso-8859-1', 'cp1252']:
-                        try:
-                            decoded_text = payload.decode(encoding)
-                            body += decoded_text
-                            break
-                        except UnicodeDecodeError:
-                            continue
-                    else:  # If no encoding worked
-                        body += payload.decode('utf-8', errors='replace')
-                except Exception as e:
-                    print(f"Error decoding email part: {str(e)}")
-                    continue
+            if part.get_content_type() != "text/plain" or part.get_content_disposition() == "attachment":
+                continue
+            payload = part.get_payload(decode=True)
+            if payload is not None:
+                charset = part.get_content_charset() or "utf-8"
+                candidates.append(payload.decode(charset, errors="replace"))
     else:
-        try:
-            charset = msg.get_content_charset() or 'utf-8'
-            payload = msg.get_payload(decode=True)
-            # Try different encodings if the first attempt fails
-            for encoding in [charset, 'utf-8', 'iso-8859-1', 'cp1252']:
-                try:
-                    body = payload.decode(encoding)
-                    break
-                except UnicodeDecodeError:
-                    continue
-            else:  # If no encoding worked
-                body = payload.decode('utf-8', errors='replace')
-        except Exception as e:
-            print(f"Error decoding email: {str(e)}")
-            body = ""
+        payload = msg.get_payload(decode=True)
+        if payload is not None:
+            charset = msg.get_content_charset() or "utf-8"
+            candidates.append(payload.decode(charset, errors="replace"))
+    return "\n".join(candidates).strip()
 
-    return from_, subject, body
+
+def read_latest_email(username, password):
+    """Returns (sender_address, subject, body, message_id); returns Nones when no mail."""
+    mail = imaplib.IMAP4_SSL("imap.gmail.com")
+    try:
+        mail.login(username, password)
+        mail.select("inbox")
+        status, messages = mail.search(None, "UNSEEN")
+        if status != "OK" or not messages or not messages[0].strip():
+            return None, None, None, None
+        latest_id = messages[0].split()[-1]
+        status, data = mail.fetch(latest_id, "(RFC822)")
+        if status != "OK" or not data or not isinstance(data[0], tuple):
+            return None, None, None, None
+        msg = email.message_from_bytes(data[0][1])
+        sender_address = parseaddr(msg.get("From", ""))[1]
+        subject = _decode_header_value(msg.get("Subject", ""))
+        body = _plain_body(msg)
+        message_id = (msg.get("Message-ID") or "").strip()
+        return sender_address, subject, body, message_id
+    finally:
+        try:
+            mail.logout()
+        except Exception:
+            pass
